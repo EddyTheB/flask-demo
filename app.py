@@ -1,4 +1,5 @@
 #import sys
+import MyTools  # Used to get the APIKey
 import requests
 import numpy as np
 import pandas as pd
@@ -21,14 +22,15 @@ def _flatten_dict(root_key, nested_dict, flattened_dict):
     
 def RequestMetData(Resource,
                    BaseURL='http://datapoint.metoffice.gov.uk/public/data/',
-                   APIKey='649c9f2f-dd78-4326-94fa-86fcb7f9c589',
+                   APIKey='MetOffice',
                    GetStr='?'):
+    APIKey = MyTools.GetAPIKey(APIKey)
     Resources = {'SiteList': 'val/wxfcs/all/json/sitelist'}
     if len(GetStr) > 1:
-        QQ = '&key='
+        KeyPre = '&key='
     else:
-        QQ = 'key='
-    Url = '{}{}{}{}{}'.format(BaseURL, Resources[Resource], GetStr, QQ, APIKey)
+        KeyPre = 'key='
+    Url = '{}{}{}{}{}'.format(BaseURL, Resources[Resource], GetStr, KeyPre, APIKey)
     resp = requests.get(Url).json()
     return resp
     
