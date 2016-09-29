@@ -2,14 +2,29 @@
 <html lang="en">
 	<head>
 		<meta charset="utf-8">
-		<title>Hello, World!</title>
+		<title>Met Office Locations</title>
 		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
 		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap-theme.min.css">
 		<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+
+          <link
+            href="http://cdn.pydata.org/bokeh/release/bokeh-0.12.2.min.css"
+            rel="stylesheet" type="text/css" />
+          <script src="http://cdn.pydata.org/bokeh/release/bokeh-0.12.2.min.js"></script>
+
+          {{SitePlotScript|safe}}
 	</head>
 	<body>
 		<div>
   			<h1>Hello, World!</h1>
+                <form id="CountyForm" method="POST" action="ChangeMap">
+                  <p>Which County?</p>
+                  <select name="CountySelect" onchange="CountyForm.submit()">{{CountyForm|safe}}</select>
+                </form>
+
+                {{SitePlotDiv|safe}}
+           
+
 		</div>
 	</body>
 </html>

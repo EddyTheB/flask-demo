@@ -1,11 +1,13 @@
-import sys
+#import sys
 import requests
 import numpy as np
 import pandas as pd
-from flask import Flask, render_template, redirect # request
-from bokeh.plotting import figure, show, ColumnDataSource
+from flask import Flask, render_template, redirect, request
+from bokeh.plotting import figure, ColumnDataSource
 from bokeh.models import HoverTool #, GMapPlot, GMapOptions, DataRange1d, Circle)
+from bokeh.embed import components
 app = Flask(__name__)
+
 
 # Some functions to get the data.
 def _flatten_dict(root_key, nested_dict, flattened_dict):
@@ -38,43 +40,25 @@ def GetSiteInfo():
     LocDF['elevation'] = LocDF['elevation'].astype(np.float)
     LocDF['latitude'] = LocDF['latitude'].astype(np.float)
     LocDF['longitude'] = LocDF['longitude'].astype(np.float)
+    LocDF = LocDF.sort_values(by=['latitude', 'longitude'])
     return LocDF   
 
 def Info(SiteInfo, field):
     return SiteInfo[field]
 
-def DownSampleSite(SiteInfo, Num):
-    # Get the full range of latitudes and longitudes.
-    """
-    Lons = SiteInfo['longitude']
-    Lats = SiteInfo['latitude']
-    # Create a complex array of lon + i*Lat
-    CPos = Lons + Lats*1j
-    # Randomly choose Num points.
-    RandCPos = CPos[(np.random.randint(0, len(CPos), size=Num)), :]
-    print RandCPos
-    # Create a set of Num randomly generatedrandom set
-    LonMin = Lons.min()
-    LonRange = Lons.max() - LonMin
-    LatMin = Lats.min()
-    LatRange = Lats.max() - LatMin
-    RandLon = np.random.rand(20,1)
-    RandLat = np.random.rand(20,1)
-    RandLon = RandLon * LonRange + LonMin
-    RandLat = RandLat * LatRange + LatMin
-    RandC = RandLon + RandLat*1j
-    """
-    return SiteInfo.sample(Num)
-
-def PlotSites(SiteInfo, County='All'):
+def PlotSites():
     
     # Set up a google map
     #map_options = GMapOptions(lat=50, lng=0, map_type="roadmap", zoom=11)
     #plot = GMapPlot(x_range=DataRange1d(), y_range=DataRange1d(), map_options=map_options)
-    if County == 'All':    
-        source = ColumnDataSource(SiteInfo)
+    SiteInfo = app.SiteInfo
+    if app.SelectedRegion == 'All':    
+      source = ColumnDataSource(SiteInfo)
+    elif app.SelectedRegion[:3] == 'All':
+      Region = app.SelectedRegion[4:]
+      source = ColumnDataSource(SiteInfo[SiteInfo['region'] == Region])
     else:
-        source = ColumnDataSource(SiteInfo[SiteInfo['unitaryAuthArea'] == County])
+      source = ColumnDataSource(SiteInfo[SiteInfo['unitaryAuthArea'] == app.SelectedRegion])
 
     # Tool tip
     hover = HoverTool(tooltips=[("Site ID", '@id'),
@@ -83,11 +67,37 @@ def PlotSites(SiteInfo, County='All'):
                                 ("Latitude", '@latitude'),
                                 ("County", '@unitaryAuthArea'),
                                 ("region", '@region')])
-    p = figure(width=700, height=800, title="Met Office Forecast Points",
+    p = figure(width=700, height=700, title="Met Office Forecast Points",
                tools=['pan', 'box_zoom', 'wheel_zoom', 'save', 'reset', hover])
     p.circle('longitude', 'latitude', size=7, color="firebrick", alpha=0.5, source=source)
-    show(p)
+    script, div = components(p)
+    return script, div
 
+def GetRegionList(SiteInfo = 'GetFromApp'):
+  if SiteInfo == 'GetFromApp':
+    SiteInfo = app.SiteInfo
+    
+  #CountyList = app.SiteInfo['unitaryAuthArea'].unique()
+  RegionList = app.SiteInfo['region'].unique()
+  
+  RegionList_ = [u"All"]
+  for Region in RegionList:
+    RegionList_.append(u"All {}".format(Region))
+    CountyList = app.SiteInfo[app.SiteInfo['region'] == Region]['unitaryAuthArea'].unique()
+    #print Region    
+    for County in CountyList:
+      RegionList_.append(u"  {}".format(County))
+  return RegionList_
+  
+def CreateRegionDropDown():
+  RegionList = GetRegionList()
+  HtmlStr = u""
+  for Reg in RegionList:
+    if Reg == app.SelectedRegion:
+      HtmlStr = HtmlStr + u'<option value="' + Reg.strip() + u'" selected>' + Reg + u'</option>'
+    else:
+      HtmlStr = HtmlStr + u'<option value="' + Reg.strip() + u'">' + Reg + u'</option>'
+  return HtmlStr
 
 @app.route('/')
 def main():
@@ -95,12 +105,20 @@ def main():
 
 @app.route('/index')
 def index():
-  return render_template('index.html')
+  RegionDropDown = CreateRegionDropDown()
+  SitePlotScript, SitePlotDiv = PlotSites()
+  return render_template('index.html', CountyForm=RegionDropDown, 
+                                       SitePlotScript=SitePlotScript,
+                                       SitePlotDiv=SitePlotDiv)
+                                       
+@app.route('/ChangeMap', methods=['GET', 'POST'])
+def ChangeMap():
+  SelectedRegion = request.form['CountySelect']
+  app.SelectedRegion = str(SelectedRegion)
+  return redirect('/index')
 
+app.SiteInfo = GetSiteInfo()
+app.SelectedRegion = 'All'
 
 if __name__ == '__main__':
-    SiteInfo = GetSiteInfo()
-    PlotSites(SiteInfo, County='Moray')
-    
-
-    #app.run(port=33507)
+  app.run(debug=True)#port=33507)
