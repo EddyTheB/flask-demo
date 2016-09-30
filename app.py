@@ -1,5 +1,6 @@
 #import sys
-import MyTools  # Used to get the APIKey
+#import MyTools  # Used to get the APIKey
+import os
 import requests
 import numpy as np
 import pandas as pd
@@ -24,7 +25,18 @@ def RequestMetData(Resource,
                    BaseURL='http://datapoint.metoffice.gov.uk/public/data/',
                    APIKey='MetOffice',
                    GetStr='?'):
-    APIKey = MyTools.GetAPIKey(APIKey)
+    #APIKey = MyTools.GetAPIKey(APIKey)
+    try:
+      # First, try to get the API key from the os.environment.
+      # This should work if deployed on Heroku.
+      APIKey = os.environ['MET_OFFICE_API_KEY']
+    except KeyError:
+      # If not deployed on Heroku, use my own tools to get the api key.
+      import MyTools
+      APIKey = MyTools.GetAPIKey(APIKey)
+    except:
+      raise
+      
     Resources = {'SiteList': 'val/wxfcs/all/json/sitelist'}
     if len(GetStr) > 1:
         KeyPre = '&key='
